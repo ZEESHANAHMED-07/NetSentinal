@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NetSentinel Control Center</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-color: #05060f;
+  --panel-bg: rgba(13, 17, 23, 0.7);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --text-primary: #f0f3f6;
+  --text-secondary: #8b949e;
+  
+  --neon-cyan: #00f0ff;
+  --neon-purple: #bf55ec;
+  --neon-red: #ff3366;
+  --neon-orange: #ff9900;
+  
+  --low: #00ff9d;
+  --medium: #ffaa00;
+  --high: #ff6600;
+  --critical: #ff0055;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-color);
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(191, 85, 236, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(0, 240, 255, 0.05) 0%, transparent 40%);
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  min-height: 100vh;
+  padding-bottom: 40px;
+  overflow-x: hidden;
+}
+
+header {
+  background: rgba(10, 12, 22, 0.8);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 16px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--neon-cyan);
+  box-shadow: 0 0 12px var(--neon-cyan);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 12px var(--neon-cyan); }
+  50% { transform: scale(1.2); opacity: 0.5; box-shadow: 0 0 4px var(--neon-cyan); }
+}
+
+h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  background: linear-gradient(45deg, var(--neon-cyan), var(--neon-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ref-time {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.btn-logout {
+  background: rgba(255, 51, 102, 0.1);
+  color: var(--neon-red);
+  border: 1px solid rgba(255, 51, 102, 0.3);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-logout:hover {
+  background: var(--neon-red);
+  color: white;
+  box-shadow: 0 0 10px rgba(255, 51, 102, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Dashboard Grid Layout */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.grid-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: transparent;
+}
+
+.card.total::before { background: linear-gradient(90deg, var(--neon-cyan), transparent); }
+.card.types::before { background: linear-gradient(90deg, var(--neon-purple), transparent); }
+.card.latest::before { background: linear-gradient(90deg, var(--neon-red), transparent); }
+
+.card-title {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.card-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.card.total .card-value { color: var(--neon-cyan); text-shadow: 0 0 15px rgba(0, 240, 255, 0.2); }
+.card.types .card-value { color: var(--neon-purple); text-shadow: 0 0 15px rgba(191, 85, 236, 0.2); }
+.card.latest .card-value { font-size: 24px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.card-sub {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Charts Panel */
+.grid-charts {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+}
+
+@media (max-width: 992px) {
+  .grid-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-card {
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.chart-card h2 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  border-left: 3px solid var(--neon-cyan);
+  padding-left: 10px;
+}
+
+.chart-container-doughnut {
+  height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.chart-container-line {
+  height: 250px;
+  position: relative;
+}
+
+/* Logs Table Section */
+.section-logs {
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  border-left: 3px solid var(--neon-purple);
+  padding-left: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+th {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 14px 16px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-color);
+}
+
+td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  vertical-align: middle;
+}
+
+tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.badge-severity {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-severity.CRITICAL { background: rgba(255, 0, 85, 0.12); color: var(--critical); border: 1px solid rgba(255, 0, 85, 0.2); }
+.badge-severity.HIGH { background: rgba(255, 102, 0, 0.12); color: var(--high); border: 1px solid rgba(255, 102, 0, 0.2); }
+.badge-severity.MEDIUM { background: rgba(255, 170, 0, 0.12); color: var(--medium); border: 1px solid rgba(255, 170, 0, 0.2); }
+.badge-severity.LOW { background: rgba(0, 255, 157, 0.12); color: var(--low); border: 1px solid rgba(0, 255, 157, 0.2); }
+
+.empty-state {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 60px 0;
+  font-style: italic;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-container">
+    <div class="logo-dot"></div>
+    <h1>NETSENTINEL</h1>
+  </div>
+  <div class="status-badge">
+    <span class="ref-time" id="ref">Syncing...</span>
+    <button class="btn-logout" onclick="logout()">Reset Key</button>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Metrics Panels -->
+  <div class="grid-metrics">
+    <div class="card total">
+      <div class="card-title">Total Threats Detected</div>
+      <div class="card-value" id="total">-</div>
+      <div class="card-sub">Accumulated across active sessions</div>
+    </div>
+    <div class="card types">
+      <div class="card-title">Unique Threat Vectors</div>
+      <div class="card-value" id="types">-</div>
+      <div class="card-sub">Active threat categories identified</div>
+    </div>
+    <div class="card latest">
+      <div class="card-title">Latest Warning</div>
+      <div class="card-value" id="latest">-</div>
+      <div class="card-sub" id="lip">Awaiting first signature...</div>
+    </div>
+  </div>
+
+  <!-- Double Charts Panel -->
+  <div class="grid-charts">
+    <div class="chart-card">
+      <h2>Category Distribution</h2>
+      <div class="chart-container-doughnut">
+        <canvas id="doughnutChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h2>Threat Frequency (Timeline)</h2>
+      <div class="chart-container-line">
+        <canvas id="lineChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Threats Logs -->
+  <div class="section-logs">
+    <div class="section-title">
+      <span>Threat Log Feed</span>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Threat Vector</th>
+            <th>Source IP</th>
+            <th>Risk Level</th>
+            <th>Signature Details</th>
+          </tr>
+        </thead>
+        <tbody id="tb">
+          <tr>
+            <td colspan="5" class="empty-state">Establishing security link...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+var doughnutChart, lineChart;
+
+function esc(s){
+  if(s===null||s===undefined)return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function getApiKey() {
+  var key = localStorage.getItem('netsentinel_api_key');
+  if (!key) {
+    key = prompt("Enter NetSentinel API Key:");
+    if (key) {
+      localStorage.setItem('netsentinel_api_key', key);
+    }
+  }
+  return key;
+}
+
+function clearApiKey() {
+  localStorage.removeItem('netsentinel_api_key');
+}
+
+function logout() {
+  clearApiKey();
+  location.reload();
+}
+
+function getAttackColor(type) {
+  type = type.toLowerCase();
+  if (type.includes('syn')) return '#bf55ec';     // Purple
+  if (type.includes('icmp')) return '#00f0ff';    // Cyan
+  if (type.includes('port')) return '#ff9900';    // Orange
+  if (type.includes('arp')) return '#ff3366';     // Red/Pink
+  if (type.includes('dns')) return '#ff00aa';     // Hot Pink
+  return '#00ff9d';
+}
+
+function updateDoughnutChart(labels, counts) {
+  var colors = labels.map(function(l) { return getAttackColor(l); });
+  if (doughnutChart) {
+    doughnutChart.data.labels = labels;
+    doughnutChart.data.datasets[0].data = counts;
+    doughnutChart.data.datasets[0].backgroundColor = colors;
+    doughnutChart.update();
+  } else {
+    var ctx = document.getElementById('doughnutChart').getContext('2d');
+    doughnutChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: counts,
+          backgroundColor: colors,
+          borderWidth: 0,
+          hoverOffset: 12
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#8b949e',
+              font: { family: 'Outfit', size: 11 },
+              padding: 15,
+              usePointStyle: true,
+              pointStyle: 'circle'
+            }
+          }
+        },
+        cutout: '72%'
+      }
+    });
+  }
+}
+
+function updateLineChart(alerts) {
+  // Sort and count alerts by 1-minute intervals to draw a trendline
+  var timeCounts = {};
+  alerts.forEach(function(a) {
+    // Convert YYYY-MM-DD HH:MM:SS to HH:MM
+    var parts = a.timestamp.split(' ');
+    if (parts.length === 2) {
+      var hm = parts[1].substring(0, 5); // Take "HH:MM"
+      timeCounts[hm] = (timeCounts[hm] || 0) + 1;
+    }
+  });
+
+  var labels = Object.keys(timeCounts).sort();
+  var data = labels.map(function(t) { return timeCounts[t]; });
+
+  if (lineChart) {
+    lineChart.data.labels = labels;
+    lineChart.data.datasets[0].data = data;
+    lineChart.update();
+  } else {
+    var ctx = document.getElementById('lineChart').getContext('2d');
+    
+    // Create gradient stroke
+    var strokeGrad = ctx.createLinearGradient(0, 0, ctx.canvas.width, 0);
+    strokeGrad.addColorStop(0, '#00f0ff');
+    strokeGrad.addColorStop(1, '#bf55ec');
+    
+    // Create gradient fill
+    var fillGrad = ctx.createLinearGradient(0, 0, 0, 200);
+    fillGrad.addColorStop(0, 'rgba(0, 240, 255, 0.2)');
+    fillGrad.addColorStop(1, 'rgba(191, 85, 236, 0.0)');
+
+    lineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Alert Volume',
+          data: data,
+          borderColor: strokeGrad,
+          borderWidth: 3,
+          backgroundColor: fillGrad,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#00f0ff',
+          pointBorderColor: '#05060f',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#8b949e', font: { family: 'Outfit', size: 10 } },
+            grid: { color: 'rgba(255, 255, 255, 0.03)' }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { 
+              color: '#8b949e', 
+              font: { family: 'Outfit', size: 10 },
+              stepSize: 1
+            },
+            grid: { color: 'rgba(255, 255, 255, 0.03)' }
+          }
+        }
+      }
+    });
+  }
+}
+
+function load(){
+  var key = getApiKey();
+  if (!key) {
+    document.getElementById('ref').textContent = 'Key Required';
+    return;
+  }
+  var headers = { 'X-API-Key': key };
+  
+  fetch('/api/summary', { headers: headers })
+    .then(function(r) {
+      if (r.status === 403) {
+        clearApiKey();
+        load();
+        throw new Error('Unauthorized');
+      }
+      return r.json();
+    })
+    .then(function(s) {
+      document.getElementById('total').textContent = s.total_alerts;
+      document.getElementById('types').textContent = s.attack_types;
+      if (s.latest) {
+        document.getElementById('latest').textContent = s.latest.attack_type;
+        document.getElementById('lip').textContent = 'Origin: ' + s.latest.src_ip;
+      }
+      document.getElementById('ref').textContent = 'Last sync: ' + new Date().toLocaleTimeString();
+      
+      var labels = s.breakdown.map(function(x) { return x.attack_type; });
+      var counts = s.breakdown.map(function(x) { return x.count; });
+      updateDoughnutChart(labels, counts);
+    })
+    .catch(function(err) {
+      console.error(err);
+    });
+
+  fetch('/api/alerts', { headers: headers })
+    .then(function(r) {
+      if (r.status === 403) {
+        clearApiKey();
+        load();
+        throw new Error('Unauthorized');
+      }
+      return r.json();
+    })
+    .then(function(alerts) {
+      var tb = document.getElementById('tb');
+      if (!alerts.length) {
+        tb.innerHTML = '<tr><td colspan="5" class="empty-state">No anomalies parsed yet. System secure.</td></tr>';
+        return;
+      }
+      
+      updateLineChart(alerts);
+
+      tb.innerHTML = alerts.map(function(a) {
+        return '<tr>' +
+          '<td style="color: var(--text-secondary); font-family: monospace; font-size: 13px;">' + esc(a.timestamp) + '</td>' +
+          '<td style="font-weight: 600; color: #fff;">' + esc(a.attack_type) + '</td>' +
+          '<td style="color: var(--neon-cyan); font-family: monospace; font-size: 13px;">' + esc(a.src_ip) + '</td>' +
+          '<td><span class="badge-severity ' + esc(a.severity) + '">' + esc(a.severity) + '</span></td>' +
+          '<td style="color: var(--text-secondary); font-size: 13px;">' + esc(a.detail) + '</td>' +
+        '</tr>';
+      }).join('');
+    })
+    .catch(function(err) {
+      console.error(err);
+    });
+}
+
+load();
+setInterval(load, 5000);
+</script>
+</body>
+</html>
