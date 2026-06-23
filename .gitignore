@@ -1,8 +1,29 @@
+# Python bytecode
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+
+# Databases and WAL temp files
 *.db
-*.pcap
-reports/*.html
+*.db-journal
+*.db-shm
+*.db-wal
+data/
+
+# Environments
 .env
+.venv/
 venv/
+ENV/
+
+# Captures and logs
+*.pcap
+*.pcapng
+*.log
+
+# Generated folders
+reports/
+
+# IDE metadata
+.vscode/
+.idea/
